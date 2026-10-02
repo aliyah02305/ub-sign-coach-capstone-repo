@@ -1,0 +1,152 @@
+.nav {
+  background: var(--navy);
+  padding: 0 4rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 66px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  border-bottom: 1px solid rgba(200, 168, 75, 0.15);
+}
+
+.navLogo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.navLogoIcon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.navLogoIcon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.navBrand {
+  font-family: 'Playfair Display', serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--white);
+  letter-spacing: 0.02em;
+}
+
+.navBrand span {
+  color: var(--gold);
+}
+
+.navLinks {
+  display: flex;
+  gap: 2.25rem;
+  list-style: none;
+}
+
+.navLink {
+  color: rgba(255, 255, 255, 0.65);
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: color 0.2s;
+  padding: 4px 0;
+}
+
+.navLink:hover,
+.navLinkActive {
+  color: var(--gold);
+}
+
+.navCta {
+  background: var(--gold);
+  color: var(--navy);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 9px 22px;
+  border-radius: 4px;
+  text-decoration: none;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: background 0.2s, transform 0.15s;
+  border: none;
+  cursor: pointer;
+}
+
+.navCta:hover {
+  background: var(--gold-light);
+  transform: translateY(-1px);
+}
+
+.navHamburger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+  padding: 4px;
+  background: none;
+  border: none;
+}
+
+.navHamburger span {
+  display: block;
+  width: 22px;
+  height: 1.5px;
+  background: rgba(255, 255, 255, 0.7);
+  transition: all 0.3s;
+}
+
+.navMobile {
+  display: flex;
+  flex-direction: column;
+  background: var(--navy2);
+  padding: 1.5rem 2rem;
+  gap: 1rem;
+  position: sticky;
+  top: 66px;
+  z-index: 999;
+}
+
+.navMobile a {
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+}
+
+.navMobile a:hover {
+  color: var(--gold);
+}
+
+.navMobile .navCta {
+  display: inline-block;
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .nav {
+    padding: 0 1.5rem;
+  }
+
+  .navLinks,
+  .navCta {
+    display: none;
+  }
+
+  .navHamburger {
+    display: flex;
+  }
+}

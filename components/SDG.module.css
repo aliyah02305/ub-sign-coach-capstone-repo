@@ -1,0 +1,62 @@
+.sdgSection {
+  background: var(--navy);
+  padding: 5.5rem 4rem;
+}
+
+.sdgSection h2 {
+  margin-bottom: 2.5rem;
+}
+
+.sdgGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.sdgCard {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  padding: 1.75rem;
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+  transition: border-color 0.2s;
+}
+
+.sdgCard:hover {
+  border-color: rgba(249, 198, 47, 0.2);
+}
+
+.sdgNum {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.8rem;
+  font-weight: 700;
+  color: var(--gold);
+  opacity: 0.45;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.sdgTitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--white);
+  margin-bottom: 0.4rem;
+}
+
+.sdgText {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.42);
+  line-height: 1.75;
+}
+
+@media (max-width: 860px) {
+  .sdgGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .sdgSection {
+    padding: 4rem 2rem;
+  }
+}
