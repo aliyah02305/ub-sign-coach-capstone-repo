@@ -87,11 +87,14 @@ function OverviewSection({ user, students }) {
     { label: 'FSL Level 2', pct: 0 },
   ];
 
+  const firstName = (user?.name || "").trim().split(/\s+/)[0] || "Faculty";
   return (
+    
     <>
       <section className={styles.welcomeBanner}>
         <div>
-          <h2 className={styles.welcomeTitle}>Welcome, {user.name}!</h2>
+          
+          <h2 className={styles.welcomeTitle}>Welcome, {firstName}!</h2>
           <p className={styles.welcomeSub}>UB CCELL FSL Program — Batch 2026</p>
         </div>
         <span className={styles.bannerDecor}></span>
@@ -831,8 +834,7 @@ export default function FacultyDashboard() {
           <img
             src="/ubbg.png"
             alt="UB Logo"
-            style={{ width:90, height:90, borderRadius:"50%", objectFit:"contain", flexShrink:0 }}
-          />
+            style={{ width:90, height:90, borderRadius:9, objectFit:"cover", flexShrink:0 }} />
           <div>
             <p className={styles.brandName}>Sign Coach</p>
             <p className={styles.brandSub}>Faculty Portal</p>

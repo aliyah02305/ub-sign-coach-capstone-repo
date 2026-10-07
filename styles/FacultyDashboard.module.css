@@ -110,6 +110,8 @@
   gap: 12px;
   padding: 20px 15px;
   overflow: hidden;
+  width: 90;
+  height: 90;
 }
 
 .brandMark {

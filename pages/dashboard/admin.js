@@ -6,7 +6,7 @@ import { useAuth } from "../../components/AuthContext";
 const T = {
   // Sidebar & Primary Branding (Deep Maroon)
   sidebarBg:     "#6B1A28", // Deep UB Maroon
-  sidebarBorder: "rgba(141, 121, 11, 0.54)", // Gold tint border
+  sidebarBorder: "rgba(210, 180, 13, 0.91)", // Gold tint border
 
   // Main Backgrounds & Surfaces
   bg:            "#FBF8F3", // Clean Warm Cream
@@ -48,11 +48,68 @@ const T = {
 };
 
 // ─── DATA ─────────────────────────────────────────────────────────────────────
-const STUDENTS = [
-  { id:1, initials:"A", name:"Aliyah",  email:"2302731@ub.edu.ph", level:"FSL 1", progress:0, accuracy:0, streak:0, score:0, status:"Active",   joined:"May 1, 2026",  lastSeen:"Today",     avBg:"#EDE9FE", avColor:"#5B21B6" },
-  { id:2, initials:"L", name:"Lance",   email:"2301252@ub.edu.ph", level:"FSL 1", progress:0, accuracy:0, streak:0, score:0, status:"Active",   joined:"May 1, 2026",  lastSeen:"2h ago",    avBg:"#DBEAFE", avColor:"#1D4ED8" },
-  { id:3, initials:"Z", name:"Zachary", email:"2301194@ub.edu.ph", level:"FSL 1", progress:0, accuracy:0, streak:0, score:0, status:"Active",   joined:"Apr 15, 2026", lastSeen:"Yesterday", avBg:"#DCFCE7", avColor:"#166534" },
+// ─── STUDENT DATA (real students from the database) ─────────────────────────
+const AV_COLORS = [
+  { bg:"#EDE9FE", color:"#5B21B6" },
+  { bg:"#DBEAFE", color:"#1D4ED8" },
+  { bg:"#DCFCE7", color:"#166534" },
+  { bg:"#FCE7F3", color:"#9D174D" },
 ];
+
+function timeAgo(d) {
+  if (!d) return "Never";
+  const mins = Math.floor((Date.now() - new Date(d)) / 60000);
+  if (mins < 2) return "Online now";
+  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1440) return `${Math.floor(mins / 60)}h ago`;
+  return `${Math.floor(mins / 1440)}d ago`;
+}
+
+function toStudentRow(u, i) {
+  const lv = (u.level || "").match(/\d/)?.[0];
+  const c = AV_COLORS[i % AV_COLORS.length];
+  const done = Array.isArray(u.completedSigns) ? u.completedSigns.length : 0;
+  const mins = u.lastSeen ? (Date.now() - new Date(u.lastSeen)) / 60000 : Infinity;
+  return {
+    id: u.uid,
+    initials: u.avatar || (u.name || "?").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase(),
+    name: u.name || "Unnamed",
+    email: u.email || "",
+    level: lv ? `FSL ${lv}` : "FSL 1",
+    progress: Math.min(100, Math.round((done / 26) * 100)),
+    accuracy: 0, streak: 0,
+    score: done,
+    status: mins < 7 * 1440 ? "Active" : "Inactive",
+    joined: new Date(u.createdAt).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }),
+    lastSeen: timeAgo(u.lastSeen),
+    avBg: c.bg, avColor: c.color,
+  };
+}
+
+// One shared fetch for every admin page. Refreshes every 10s so new sign-ups appear.
+function useStudents() {
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/students");
+        if (!res.ok) throw new Error(`Students API returned ${res.status}`);
+        const data = await res.json();
+        if (alive) setStudents(data.map(toStudentRow));
+      } catch (e) {
+        console.error("Failed to load students", e);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+    load();
+    const t = setInterval(load, 10000);
+    return () => { alive = false; clearInterval(t); };
+  }, []);
+  return { students, loading };
+}
 
 const MODULES = [
   { id:1, name:"Alphabet & Numbers",       level:"FSL 1", lessons:26, enrolled:89, completion:28, updated:"May 27, 2026", status:"Active",  desc:"Learn the FSL alphabet A-Z and numbers 1-100.", stripe:T.goldGrad,   levelColor:T.gold  },
@@ -60,12 +117,6 @@ const MODULES = [
   { id:3, name:"Numbers & Counting",       level:"FSL 1", lessons:20, enrolled:89, completion:0,  updated:"Jun 8, 2026",  status:"Locked", desc:"Advanced number usage and counting techniques.", stripe:T.goldGrad,   levelColor:T.gold  },
   { id:4, name:"Colors & Shapes",          level:"FSL 2", lessons:16, enrolled:35, completion:0,  updated:"Jun 10, 2026", status:"Locked", desc:"Colors, shapes, and descriptive vocabulary.", stripe:T.mossGrad,   levelColor:T.moss2 },
   { id:5, name:"Family & Relationships",   level:"FSL 2", lessons:22, enrolled:35, completion:0,  updated:"Jun 12, 2026", status:"Locked", desc:"Family members, relationships, and social bonds.", stripe:"linear-gradient(90deg,#C4714A,#E8B0C0)", levelColor:T.clay  },
-];
-
-const SESSIONS = [
-  { id:1, student:"Aliyah",  sId:1, module:"Alphabet & Numbers", date:"May 20, 2026", duration:"0 min", accuracy:0, signs:0, status:"Completed" },
-  { id:2, student:"Lance",   sId:2, module:"Alphabet & Numbers", date:"May 20, 2026", duration:"0 min", accuracy:0, signs:0, status:"Completed" },
-  { id:3, student:"Zachary", sId:3, module:"Alphabet & Numbers", date:"May 19, 2026", duration:"0 min", accuracy:0, signs:0, status:"Completed" },
 ];
 
 const ACHIEVEMENTS_DATA = [
@@ -398,12 +449,12 @@ function StudentRow({ s, onClick, selected }) {
           </div>
         </div>
       </td>
+      <td style={{ padding: "10px 10px", fontSize: 11, color: T.muted }}>{s.email}</td>
       <td style={{ padding: "10px 10px" }}><Pill label={s.level} variant={s.level === "FSL 1" ? "fsl1" : "fsl2"} /></td>
       <td style={{ padding: "10px 10px" }}>
         <ProgressBar pct={s.progress} width="72px" />
         <div style={{ fontSize: 10, color: T.muted, marginTop: 3 }}>{s.progress}%</div>
       </td>
-      <td style={{ padding: "10px 10px", fontWeight: 700, color: AccuracyColor(s.accuracy) }}>{s.accuracy}%</td>
       <td style={{ padding: "10px 10px", fontSize: 12, color: T.bark }}>🔥 {s.streak}d</td>
       <td style={{ padding: "10px 10px", fontWeight: 700, color: AccuracyColor(s.score) }}>{s.score}</td>
       <td style={{ padding: "10px 10px", fontSize: 11, color: T.muted }}>{s.lastSeen}</td>
@@ -560,18 +611,22 @@ function NavButton({ item, isActive, onClick, expanded }) {
 }
 
 // ─── PAGE: DASHBOARD ──────────────────────────────────────────────────────────
-function PageDashboard({ setActivePage, user }) {
+function PageDashboard({ setActivePage, user, students = [], loading }) {
+  const firstName = (user?.name || "").trim().split(/\s+/)[0] || "Admin";
+  const avgProgress = students.length ? Math.round(students.reduce((a, s) => a + s.progress, 0) / students.length) : 0;
+  const withBadges  = students.filter(s => s.score > 0).length;
+  const top = students.slice().sort((a, b) => b.score - a.score).slice(0, 3);
   return (
     <div className="sc-page-content" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <Banner
         greeting={new Date().toLocaleDateString("en-PH", { weekday:"long", year:"numeric", month:"long", day:"numeric" })}
-        title={`Welcome, Admin ${user?.name || ""}!`}
-        sub="Batch 2026 is 67% through their FSL journey."
+        title={`Welcome, Admin ${firstName}!`}
+        sub={`${students.length} student${students.length === 1 ? "" : "s"} enrolled in Batch 2026.`}
         actions={[<BtnGhost key="b" onClick={() => setActivePage("reports")}>View Reports</BtnGhost>]}
-        stats={[{ num:"3", label:"Students" }, { num:"10%", label:"Avg Progress" }, { num:"3", label:"Badges" }]}
+        stats={[{ num:students.length, label:"Students" }, { num:`${avgProgress}%`, label:"Avg Progress" }, { num:withBadges, label:"Badges" }]}
       />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
-        <StatCard icon="👥" value="3"   label="Total Students"   trend="+8 this batch"    trendUp accentColor={T.goldGrad} iconBg="#FFF3E0" />
+        <StatCard icon="👥" value={students.length} label="Total Students"   trend="enrolled in batch" trendUp accentColor={T.goldGrad} iconBg="#FFF3E0" />
         <StatCard icon="📈" value="0%"  label="Avg Accuracy"     trend="+4% this week"    trendUp accentColor={T.mossGrad} iconBg="#E8F2EF" />
         <StatCard icon="📚" value="0"   label="Active Modules"   trend="2 FSL 1, 3 FSL 2" trendUp accentColor={`linear-gradient(135deg,${T.clay},${T.clay2})`} iconBg="#FDF0EA" />
         <StatCard icon="⏱️" value="0"   label="Avg Weekly Study" trend="-0.3h vs goal"    trendUp={false} accentColor={`linear-gradient(135deg,${T.sage},${T.sage2})`} iconBg="#EAF4F2" />
@@ -581,7 +636,13 @@ function PageDashboard({ setActivePage, user }) {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }} className="sc-card-table">
             <TableHead cols={["Student","Level","Progress","Accuracy","Status"]} />
             <tbody>
-              {STUDENTS.map(s => (
+              {loading && (
+                <tr><td colSpan={5} style={{ padding: 20, textAlign: "center", color: T.muted, fontSize: 12 }}>Loading students…</td></tr>
+              )}
+              {!loading && students.length === 0 && (
+                <tr><td colSpan={5} style={{ padding: 20, textAlign: "center", color: T.muted, fontSize: 12 }}>No students yet.</td></tr>
+              )}
+              {students.slice(0, 5).map(s => (
                 <tr key={s.id} style={{ borderBottom: `1px solid ${T.bg}`, transition: "background 0.15s" }}
                   onMouseEnter={e => e.currentTarget.style.background = "#F9F6F0"}
                   onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
@@ -625,8 +686,9 @@ function PageDashboard({ setActivePage, user }) {
             <BarChart data={REPORTS_DATA.weekly} labels={REPORTS_DATA.days} maxH={110} />
           </Card>
           <Card title="🏆 Top Performers" action={<button style={{ fontSize: 14, color: T.moss2, fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontFamily: T.fontBody }}>Full rankings →</button>}>
-            {STUDENTS.slice().sort((a, b) => b.score - a.score).slice(0, 3).map((s, i) => (
-              <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: i < 2 ? `1px solid ${T.bg}` : "none" }}>
+            {top.length === 0 && <div style={{ fontSize: 12, color: T.muted }}>No students yet.</div>}
+            {top.map((s, i) => (
+              <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: i < top.length - 1 ? `1px solid ${T.bg}` : "none" }}>
                 <span style={{ fontFamily: T.fontDisplay, fontSize: 17, width: 22, textAlign: "center", color: i === 0 ? T.gold : i === 1 ? "#8A9BA8" : "#A0714A" }}>#{i + 1}</span>
                 <Av initials={s.initials} bg={s.avBg} color={s.avColor} />
                 <div style={{ flex: 1 }}>
@@ -647,30 +709,36 @@ function PageDashboard({ setActivePage, user }) {
 }
 
 // ─── PAGE: STUDENTS ───────────────────────────────────────────────────────────
-function PageStudents() {
+function PageStudents({ students = [], loading }) {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
 
-  const filtered = STUDENTS.filter(s => {
+  const filtered = students.filter(s => {
     const mf = filter === "all" || s.status.toLowerCase() === filter;
     const ms = s.name.toLowerCase().includes(search.toLowerCase()) || s.email.toLowerCase().includes(search.toLowerCase());
     return mf && ms;
   });
 
+  const activeCount   = students.filter(s => s.status === "Active").length;
+  const inactiveCount = students.filter(s => s.status === "Inactive").length;
+  const avgProgress   = students.length
+    ? Math.round(students.reduce((a, s) => a + s.progress, 0) / students.length)
+    : 0;
+
   return (
     <div className="sc-page-content" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <Banner
         title="Manage Learners"
-        sub="124 students enrolled in Batch 2026"
+        sub={`${students.length} student${students.length === 1 ? "" : "s"} enrolled in Batch 2026`}
         actions={[<BtnGhost key="b">Export List</BtnGhost>]}
-        stats={[{ num:"3", label:"Active" }, { num:"0", label:"At Risk" }, { num:"0", label:"Inactive" }]}
+        stats={[{ num:activeCount, label:"Active" }, { num:0, label:"At Risk" }, { num:inactiveCount, label:"Inactive" }]}
       />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
-        <StatCard icon="👥" value="3"  label="Total Students" trend="+8 this batch"  trendUp accentColor={T.goldGrad} iconBg="#FFF3E0" />
-        <StatCard icon="✅" value="0"  label="Active"         trend="+5 this week"   trendUp accentColor={T.mossGrad} iconBg="#E8F2EF" />
-        <StatCard icon="⚠️" value="0"  label="At Risk"        trend="missed 3+ days" trendUp={false} accentColor={`linear-gradient(135deg,${T.clay},${T.clay2})`} iconBg="#FDF0EA" />
-        <StatCard icon="📈" value="0%" label="Avg Progress"   trend="+4% this week"  trendUp accentColor={`linear-gradient(135deg,${T.sage},${T.sage2})`} iconBg="#EAF4F2" />
+        <StatCard icon="👥" value={students.length} label="Total Students" trend="enrolled in batch"  trendUp accentColor={T.goldGrad} iconBg="#FFF3E0" />
+        <StatCard icon="✅" value={activeCount}     label="Active"         trend="active in last 7 days" trendUp accentColor={T.mossGrad} iconBg="#E8F2EF" />
+        <StatCard icon="⚠️" value={0}               label="At Risk"        trend="missed 3+ days" trendUp={false} accentColor={`linear-gradient(135deg,${T.clay},${T.clay2})`} iconBg="#FDF0EA" />
+        <StatCard icon="📈" value={`${avgProgress}%`} label="Avg Progress" trend="across all students" trendUp accentColor={`linear-gradient(135deg,${T.sage},${T.sage2})`} iconBg="#EAF4F2" />
       </div>
       <Card title="All Students"
         action={
@@ -683,6 +751,12 @@ function PageStudents() {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
           <TableHead cols={["Student","Email","Level","Progress","Streak","Score","Last Seen","Status"]} />
           <tbody>
+            {loading && (
+              <tr><td colSpan={8} style={{ padding: 20, textAlign: "center", color: T.muted, fontSize: 12 }}>Loading students…</td></tr>
+            )}
+            {!loading && filtered.length === 0 && (
+              <tr><td colSpan={8} style={{ padding: 20, textAlign: "center", color: T.muted, fontSize: 12 }}>No students yet.</td></tr>
+            )}
             {filtered.map(s => (
               <StudentRow key={s.id} s={s} selected={selected?.id === s.id} onClick={() => setSelected(selected?.id === s.id ? null : s)} />
             ))}
@@ -705,7 +779,7 @@ function PageStudents() {
             {[
               { label:"Level",    value:selected.level        },
               { label:"Progress", value:selected.progress+"%" },
-              { label:"Score",    value:selected.score+"/100" },
+              { label:"Score",    value:selected.score+"/26"  },
               { label:"Streak",   value:selected.streak+"d 🔥"},
               { label:"Status",   value:selected.status       },
               { label:"Joined",   value:selected.joined       },
@@ -760,15 +834,16 @@ function PageModules() {
 // ─── PAGE: SESSIONS ───────────────────────────────────────────────────────────
 function PageSessions() {
   const [filter, setFilter] = useState("all");
-  const filtered = filter === "all" ? SESSIONS : SESSIONS.filter(s => s.status.toLowerCase() === filter);
+  const sessions = []; // TODO: load real practice sessions once they are stored in the database
+  const filtered = filter === "all" ? sessions : sessions.filter(s => s.status.toLowerCase() === filter);
 
   return (
     <div className="sc-page-content" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <Banner
         title="Practice Sessions"
-        sub="5 sessions this week — 4 completed"
+        sub="No sessions recorded yet"
         actions={[<BtnPrimary key="a">Export Sessions</BtnPrimary>]}
-        stats={[{ num:"5", label:"Total" }, { num:"4", label:"Completed" }, { num:"41m", label:"Avg Duration" }]}
+        stats={[{ num:0, label:"Total" }, { num:0, label:"Completed" }, { num:"0m", label:"Avg Duration" }]}
       />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
         <StatCard icon="▶️" value="0"   label="Total Sessions" trend="this week"       trendUp accentColor={T.goldGrad} iconBg="#FFF3E0" />
@@ -785,27 +860,20 @@ function PageSessions() {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
           <TableHead cols={["Student","Module","Date","Duration","Signs","Accuracy","Status"]} />
           <tbody>
-            {filtered.map(s => {
-              const st = STUDENTS.find(x => x.id === s.sId);
-              return (
-                <tr key={s.id} style={{ borderBottom: `1px solid ${T.bg}`, transition: "background 0.15s" }}
-                  onMouseEnter={e => e.currentTarget.style.background = "#F9F6F0"}
-                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                  <td style={{ padding: "10px 10px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      {st && <Av initials={st.initials} bg={st.avBg} color={st.avColor} size={28} />}
-                      <span style={{ fontWeight: 700, color: T.bark }}>{s.student}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: "10px 10px", color: T.muted }}>{s.module}</td>
-                  <td style={{ padding: "10px 10px", color: T.muted }}>{s.date}</td>
-                  <td style={{ padding: "10px 10px" }}>{s.duration}</td>
-                  <td style={{ padding: "10px 10px" }}>{s.signs} signs</td>
-                  <td style={{ padding: "10px 10px", fontWeight: 700, color: AccuracyColor(s.accuracy) }}>{s.accuracy}%</td>
-                  <td style={{ padding: "10px 10px" }}><Pill label={s.status} variant={s.status === "Completed" ? "completed" : "incomplete"} /></td>
-                </tr>
-              );
-            })}
+            {filtered.length === 0 && (
+              <tr><td colSpan={7} style={{ padding: 20, textAlign: "center", color: T.muted, fontSize: 12 }}>No sessions recorded yet.</td></tr>
+            )}
+            {filtered.map(s => (
+              <tr key={s.id} style={{ borderBottom: `1px solid ${T.bg}` }}>
+                <td style={{ padding: "10px 10px", fontWeight: 700, color: T.bark }}>{s.student}</td>
+                <td style={{ padding: "10px 10px", color: T.muted }}>{s.module}</td>
+                <td style={{ padding: "10px 10px", color: T.muted }}>{s.date}</td>
+                <td style={{ padding: "10px 10px" }}>{s.duration}</td>
+                <td style={{ padding: "10px 10px" }}>{s.signs} signs</td>
+                <td style={{ padding: "10px 10px", fontWeight: 700, color: AccuracyColor(s.accuracy) }}>{s.accuracy}%</td>
+                <td style={{ padding: "10px 10px" }}><Pill label={s.status} variant={s.status === "Completed" ? "completed" : "incomplete"} /></td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </Card>
@@ -814,7 +882,7 @@ function PageSessions() {
 }
 
 // ─── PAGE: ANALYTICS ─────────────────────────────────────────────────────────
-function PageAnalytics() {
+function PageAnalytics({ students = [] }) {
   return (
     <div className="sc-page-content" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <Banner
@@ -862,8 +930,9 @@ function PageAnalytics() {
         </Card>
         <Card title="Top Performers">
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {STUDENTS.slice().sort((a, b) => b.score - a.score).map((s, i) => (
-              <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: i < STUDENTS.length - 1 ? `1px solid ${T.bg}` : "none" }}>
+            {students.length === 0 && <div style={{ fontSize: 12, color: T.muted }}>No students yet.</div>}
+            {students.slice().sort((a, b) => b.score - a.score).map((s, i) => (
+              <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: i < students.length - 1 ? `1px solid ${T.bg}` : "none" }}>
                 <span style={{ fontFamily: T.fontDisplay, fontSize: 16, width: 22, textAlign: "center", color: i === 0 ? T.gold : i === 1 ? "#8A9BA8" : "#A0714A" }}>#{i + 1}</span>
                 <Av initials={s.initials} bg={s.avBg} color={s.avColor} size={28} />
                 <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: T.bark }}>{s.name}</span>
@@ -881,7 +950,7 @@ function PageAnalytics() {
 }
 
 // ─── PAGE: ACHIEVEMENTS ───────────────────────────────────────────────────────
-function PageAchievements() {
+function PageAchievements({ students = [] }) {
   return (
     <div className="sc-page-content" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <Banner
@@ -918,12 +987,10 @@ function PageAchievements() {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
           <TableHead cols={["Student","Badge","Date","Level"]} />
           <tbody>
-            {[
-              { s: STUDENTS[2], badge:"🏅 Consistent Learner", date:"Today"     },
-              { s: STUDENTS[2], badge:"🌟 Perfect Score",       date:"Yesterday" },
-              { s: STUDENTS[1], badge:"🔥 7-Day Streak",        date:"May 18"    },
-              { s: STUDENTS[0], badge:"📚 First Sign",          date:"May 17"    },
-            ].map((r, i) => (
+            {students.filter(s => s.score > 0).length === 0 && (
+              <tr><td colSpan={4} style={{ padding: 20, textAlign: "center", color: T.muted, fontSize: 12 }}>No badges awarded yet.</td></tr>
+            )}
+            {students.filter(s => s.score > 0).map(s => ({ s, badge:"📚 First Sign", date:s.lastSeen })).map((r, i) => (
               <tr key={i} style={{ borderBottom: `1px solid ${T.bg}`, transition: "background 0.15s" }}
                 onMouseEnter={e => e.currentTarget.style.background = "#F9F6F0"}
                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
@@ -984,7 +1051,7 @@ function PageReminders() {
 }
 
 // ─── PAGE: REPORTS ────────────────────────────────────────────────────────────
-function PageReports() {
+function PageReports({ students = [] }) {
   return (
     <div className="sc-page-content" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <Banner
@@ -996,7 +1063,7 @@ function PageReports() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
         <StatCard icon="📋" value="7"    label="Reports Generated" trend="this month"  trendUp accentColor={T.goldGrad} iconBg="#FFF3E0" />
         <StatCard icon="📈" value="82%"  label="Highest Accuracy"  trend="Sofia Reyes" trendUp accentColor={T.mossGrad} iconBg="#E8F2EF" />
-        <StatCard icon="👥" value="124"  label="Students Tracked"  trend="full batch"  trendUp accentColor={`linear-gradient(135deg,${T.clay},${T.clay2})`} iconBg="#FDF0EA" />
+        <StatCard icon="👥" value={students.length} label="Students Tracked"  trend="full batch"  trendUp accentColor={`linear-gradient(135deg,${T.clay},${T.clay2})`} iconBg="#FDF0EA" />
         <StatCard icon="⏱️" value="128h" label="Total Study Hours" trend="cumulative"  trendUp accentColor={`linear-gradient(135deg,${T.sage},${T.sage2})`} iconBg="#EAF4F2" />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
@@ -1019,7 +1086,10 @@ function PageReports() {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
           <TableHead cols={["Student","Level","Progress","Accuracy","Streak","Score","Status"]} />
           <tbody>
-            {STUDENTS.map(s => (
+            {students.length === 0 && (
+              <tr><td colSpan={7} style={{ padding: 20, textAlign: "center", color: T.muted, fontSize: 12 }}>No students yet.</td></tr>
+            )}
+            {students.map(s => (
               <tr key={s.id} style={{ borderBottom: `1px solid ${T.bg}`, transition: "background 0.15s" }}
                 onMouseEnter={e => e.currentTarget.style.background = "#F9F6F0"}
                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
@@ -1271,6 +1341,7 @@ export default function PageAdminDashboard() {
   const [profileName,   setProfileName]   = useState(() => LS.get("sc_admin_name",   user?.name  || "Admin"));
   const [profileAvatar, setProfileAvatar] = useState(() => LS.get("sc_admin_avatar", null));
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
+  const { students, loading } = useStudents();
 
   const handleProfileUpdate = ({ name, avatar }) => {
     if (name)              setProfileName(name);
@@ -1293,16 +1364,16 @@ export default function PageAdminDashboard() {
 
   const renderPage = () => {
     switch (activePage) {
-      case "dashboard":    return <PageDashboard setActivePage={setActivePage} user={{ ...user, name: profileName }} />;
-      case "students":     return <PageStudents />;
+      case "dashboard":    return <PageDashboard setActivePage={setActivePage} user={{ ...user, name: profileName }} students={students} loading={loading} />;
+      case "students":     return <PageStudents students={students} loading={loading} />;
       case "modules":      return <PageModules />;
       case "sessions":     return <PageSessions />;
-      case "analytics":    return <PageAnalytics />;
-      case "achievements": return <PageAchievements />;
+      case "analytics":    return <PageAnalytics students={students} />;
+      case "achievements": return <PageAchievements students={students} />;
       case "reminders":    return <PageReminders />;
-      case "reports":      return <PageReports />;
+      case "reports":      return <PageReports students={students} />;
       case "settings":     return <PageSettings user={{ ...user, name:profileName, avatar:profileAvatar }} onProfileUpdate={handleProfileUpdate} />;
-      default:             return <PageDashboard setActivePage={setActivePage} />;
+      default:             return <PageDashboard setActivePage={setActivePage} students={students} loading={loading} />;
     }
   };
 
@@ -1314,21 +1385,21 @@ export default function PageAdminDashboard() {
         onMouseEnter={() => setSidebarExpanded(true)}
         onMouseLeave={() => setSidebarExpanded(false)}
         style={{
-          width: sidebarExpanded ? 230 : 64,
+          width: sidebarExpanded ? 250 : 110,
           transition: "width 0.28s cubic-bezier(0.4, 0, 0.2, 1)",
           background: T.sidebarBg,
           display: "flex", flexDirection: "column", flexShrink: 0,
           position: "relative", overflow: "hidden",
         }}
       >
-        <div style={{ position:"absolute", inset:0, pointerEvents:"none", opacity:0.04, backgroundImage:`url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/svg%3E")` }} />
+        
         <div style={{
           padding: sidebarExpanded ? "20px 18px 16px" : "20px 13px 16px",
           borderBottom: "1px solid rgba(255,255,255,0.08)",
           transition: "padding 0.28s cubic-bezier(0.4,0,0.2,1)",
         }}>
           <div style={{ display:"flex", alignItems:"center", gap: sidebarExpanded ? 11 : 0 }}>
-            <img src="/ubbg.png" alt="SC" style={{ width:45, height:45, borderRadius:10, objectFit:"cover", flexShrink:0, boxShadow:`0 3px 12px rgba(201,147,58,0.4)` }} />
+            <img src="/ubbg.png" alt="SC" style={{ width:90, height:90, borderRadius:10, objectFit:"cover", flexShrink:0, boxShadow: "none", background: "transparent", }} />
             <div style={{ overflow:"hidden", maxWidth: sidebarExpanded ? 160 : 0, opacity: sidebarExpanded ? 1 : 0, transition:"max-width 0.28s cubic-bezier(0.4,0,0.2,1), opacity 0.2s ease", whiteSpace:"nowrap" }}>
               <div style={{ fontSize:14, fontWeight:600, color:"#fff", letterSpacing:"-0.2px" }}>Sign Coach</div>
               <div style={{ fontSize:9, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"0.12em" }}>Admin Portal</div>
@@ -1347,7 +1418,7 @@ export default function PageAdminDashboard() {
                 whiteSpace:"nowrap",
               }}>{section}</div>
               {navItems.filter(n => n.section === section).map(item => (
-                <NavButton key={item.id} item={item} isActive={activePage === item.id} onClick={() => setActivePage(item.id)} expanded={sidebarExpanded} />
+                <NavButton key={item.id} item={item.id === "students" ? { ...item, badge: String(students.length) } : item} isActive={activePage === item.id} onClick={() => setActivePage(item.id)} expanded={sidebarExpanded} />
               ))}
             </div>
           ))}

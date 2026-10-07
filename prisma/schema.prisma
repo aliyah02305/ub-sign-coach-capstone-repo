@@ -16,4 +16,7 @@ model User {
   level     String?
   avatar    String?
   createdAt DateTime @default(now())
+
+  completedSigns Json?
+lastSeen       DateTime?
 }

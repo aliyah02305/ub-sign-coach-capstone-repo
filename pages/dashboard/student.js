@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import { useAuth } from "../../components/AuthContext";
+import { auth } from "../../lib/firebase";
 import CameraView from "../../components/CameraView";
 import { detectCurrentSign, SUPPORTED_SIGNS, pushToTrail, detectJMotion, detectZMotion } from "../../lib/handLogic";
 
@@ -74,7 +75,7 @@ const navItems = [
 const T = {
   // Sidebar & Primary Branding (Deep Maroon)
   sidebarBg:     "#6B1A28", // Deep UB Maroon
-  sidebarBorder: "rgba(141, 121, 11, 0.54)", // Gold tint border
+  sidebarBorder: "rgba(210, 180, 13, 0.91)", // Gold tint border
 
   // Main Backgrounds & Surfaces
   bg:            "#FBF8F3", // Clean Warm Cream
@@ -214,7 +215,7 @@ function Banner({ eyebrow, title, sub, cta, onCta }) {
 }
 
 /* ── Module Card ── */
-function ModuleCard({ mod }) {
+function ModuleCard({ mod, extra, onContinue, practicing, allowEnd = true, hideContinue = false }) {
   const [hov, setHov] = useState(false);
   const isLocked   = mod.status === "locked";
   const lm         = levelMeta[mod.level] || levelMeta["FSL 1"];
@@ -257,7 +258,7 @@ function ModuleCard({ mod }) {
             <span style={{ fontSize:13, fontWeight:600, padding:"2px 6px", borderRadius:99, background:statusCfg.bg, color:statusCfg.color }}>{statusCfg.label}</span>
           </div>
           <p style={{ margin:0, fontSize:14, fontWeight:700, color: isLocked ? T.textMuted : T.text, lineHeight:1.3 }}>{mod.title}</p>
-          <p style={{ margin:"2px 0 0", fontSize:13, color:T.textMuted }}>0/{mod.total} lessons · {mod.updated}</p>
+          <p style={{ margin:"2px 0 0", fontSize:13, color:T.textMuted }}>{mod.done}/{mod.total} lessons · {mod.updated}</p>
         </div>
       </div>
 
@@ -269,18 +270,28 @@ function ModuleCard({ mod }) {
         <Bar pct={mod.progress} locked={isLocked} accent={lm.accent} />
       </div>
 
-      {!isLocked && (
-        <div style={{ display:"flex", justifyContent:"flex-end", marginTop:4 }}>
-          <button style={{
-            display:"flex", alignItems:"center", gap:5,
-            padding:"5px 12px", borderRadius:7, border:"none", cursor:"pointer",
-            fontSize:13, fontWeight:700, fontFamily:"inherit",
-            background: hov ? T.amber600 : T.amber100,
-            color: hov ? "#fff" : T.amber700,
-            transition:"all 0.15s ease",
-          }}>
-            <span style={{ fontSize:11 }}>▶</span> Continue
-          </button>
+      {!isLocked && extra}
+
+      {!isLocked && !hideContinue && (
+        <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center", marginTop:4 }}>
+          {!allowEnd && practicing ? (
+            <span style={{ fontSize:13, fontWeight:700, color:T.amber700 }}>● Activity in progress…</span>
+          ) : !allowEnd && mod.status === "complete" ? (
+            <span style={{ fontSize:13, fontWeight:700, color:T.success }}>✓ Completed</span>
+          ) : (
+            <button
+              onClick={() => onContinue?.(mod)}
+              style={{
+                display:"flex", alignItems:"center", gap:5,
+                padding:"5px 12px", borderRadius:7, border:"none", cursor:"pointer",
+                fontSize:13, fontWeight:700, fontFamily:"inherit",
+                background: practicing || hov ? T.amber600 : T.amber100,
+                color: practicing || hov ? "#fff" : T.amber700,
+                transition:"all 0.15s ease",
+              }}>
+              <span style={{ fontSize:11 }}>{practicing ? "■" : "▶"}</span> {practicing ? "End Practice" : "Continue"}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -288,7 +299,7 @@ function ModuleCard({ mod }) {
 }
 
 /* ── Level Section ── */
-function LevelSection({ level, mods, collapsible }) {
+function LevelSection({ level, mods, collapsible, columns = 3, renderExtra, onContinue, practicingId, allowEnd = true, hideContinue = false }) {
   const [open, setOpen] = useState(true);
   const lm     = levelMeta[level];
   const done   = mods.filter(m => m.status === "complete").length;
@@ -321,8 +332,18 @@ function LevelSection({ level, mods, collapsible }) {
       </div>
 
       {open && (
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:9 }}>
-          {mods.map(mod => <ModuleCard key={mod.id} mod={mod} />)}
+        <div style={{ display:"grid", gridTemplateColumns:`repeat(${columns}, 1fr)`, gap:9 }}>
+          {mods.map(mod => (
+            <ModuleCard
+              key={mod.id}
+              mod={mod}
+              extra={renderExtra?.(mod)}
+              onContinue={onContinue}
+              practicing={practicingId === mod.id}
+              allowEnd={allowEnd}
+              hideContinue={hideContinue}
+            />
+          ))}
         </div>
       )}
     </div>
@@ -396,12 +417,21 @@ function BadgeCard({ icon, label, date, locked }) {
 /* ─────────────────────────────────────────────
    PAGE: DASHBOARD
 ───────────────────────────────────────────── */
-function PageDashboard({ user, totalProgress, setActivePage }) {
+function PageDashboard({ user, totalProgress, setActivePage, modules }) {
+  const fullName =
+  user?.name ||
+  user?.fullName ||
+  user?.full_name ||
+  user?.displayName ||
+  "";
+
+const firstName = fullName.trim().split(/\s+/)[0] || "Learner";
+
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
       <Banner
-        eyebrow="UB-CELI FSL Program — Batch 2026"
-        title={`Welcome, ${user.name.split(" ")[0]}!`}
+        eyebrow="UB-CELL FSL Program — Batch 2026"
+        title={`Welcome, ${firstName}!`}
         sub="Continue your FSL learning journey"
         cta="▶ Start Practice"
         onCta={() => setActivePage("practice")}
@@ -432,7 +462,7 @@ function PageDashboard({ user, totalProgress, setActivePage }) {
             {LEVELS.map(lvl => {
               const mods = modules.filter(m => m.level === lvl);
               if (!mods.length) return null;
-              return <LevelSection key={lvl} level={lvl} mods={mods} collapsible />;
+              return <LevelSection key={lvl} level={lvl} mods={mods} collapsible hideContinue />;
             })}
           </div>
         </div>
@@ -516,13 +546,218 @@ function PageDashboard({ user, totalProgress, setActivePage }) {
 }
 
 /* ─────────────────────────────────────────────
-   PAGE: MY MODULES
+   CAMERA PREVIEW (plain camera, no detection)
 ───────────────────────────────────────────── */
-function PageModules({ totalProgress }) {
+function CameraPreview() {
+  const videoRef  = useRef(null);
+  const streamRef = useRef(null);
+  const [on, setOn]       = useState(false);
+  const [error, setError] = useState("");
+
+  const start = async () => {
+    try {
+      setError("");
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+        audio: false,
+      });
+      streamRef.current = stream;
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
+      setOn(true);
+    } catch (e) {
+      setError("Camera blocked or unavailable. Check your browser permissions.");
+    }
+  };
+
+  const stop = () => {
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setOn(false);
+  };
+
+  // release the camera when leaving the page
+  useEffect(() => () => {
+    streamRef.current?.getTracks().forEach(t => t.stop());
+  }, []);
+
+  return (
+    <div style={{ position:"relative", flex:1, minHeight:240, borderRadius:12, overflow:"hidden", background:"#241a0e" }}>
+      <video
+        ref={videoRef}
+        playsInline
+        muted
+        style={{
+          width:"100%", height:"100%", objectFit:"cover",
+          transform:"scaleX(-1)",
+          display: on ? "block" : "none",
+        }}
+      />
+
+      {!on && (
+        <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, textAlign:"center", padding:20 }}>
+          <div style={{ fontSize:40 }}>🎥</div>
+          <p style={{ margin:0, fontSize:16, fontWeight:700, color:"#fff" }}>Camera Preview</p>
+          <p style={{ margin:0, fontSize:13, color:"#e8c88a" }}>Your camera feed will appear here during a live session</p>
+          <button onClick={start} style={{
+            marginTop:6, padding:"10px 20px", borderRadius:9, border:"none", cursor:"pointer",
+            background:T.amber600, color:"#fff", fontWeight:700, fontSize:14, fontFamily:"inherit",
+          }}>Allow Camera Access</button>
+          {error && <p style={{ margin:0, fontSize:12, color:"#ff9d9d" }}>{error}</p>}
+        </div>
+      )}
+
+      {on && (
+        <button onClick={stop} style={{
+          position:"absolute", top:10, right:10, padding:"6px 12px", borderRadius:8, border:"none",
+          cursor:"pointer", background:"rgba(0,0,0,0.6)", color:"#fff", fontSize:12, fontWeight:600, fontFamily:"inherit",
+        }}>Stop Camera</button>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   PAGE: MY MODULES  (activity — no End button)
+───────────────────────────────────────────── */
+function PageModules({ totalProgress, modules, completed = [], onSignCompleted }) {
   const [activeLevel, setActiveLevel] = useState("all");
+
+  const [practicingId, setPracticingId] = useState(null);
+  const [landmarks, setLandmarks]       = useState(null);
+  const [detectedSign, setDetectedSign] = useState(null);
+  const [targetSign, setTargetSign]     = useState(SUPPORTED_SIGNS[0]);
+  const [feedback, setFeedback]         = useState(null);   // null | "correct" | "wrong"
+  const [finished, setFinished]         = useState(false);
+  const lockRef       = useRef(false);
+  const wrongCountRef = useRef(0);
+  const emptyCountRef = useRef(0);
+  const jTrailRef     = useRef([]);
+  const zTrailRef     = useRef([]);
+
+  const practicing = practicingId !== null;
+
+  const resetFeedback = () => {
+    setFeedback(null);
+    wrongCountRef.current = 0;
+    emptyCountRef.current = 0;
+  };
+
+  // Continue = simula ng activity (walang End button)
+  const handleContinue = (mod) => {
+    if (practicingId !== null) return;
+    const firstLeft = SUPPORTED_SIGNS.find(s => !completed.includes(s)) || SUPPORTED_SIGNS[0];
+    setTargetSign(firstLeft);
+    setDetectedSign(null);
+    setFinished(false);
+    resetFeedback();
+    setPracticingId(mod.id);
+  };
+
+  // Tumatakbo sa bawat frame na may nakitang kamay
+  const handleResults = (lm) => {
+    setLandmarks(lm);
+    const staticSign = detectCurrentSign(lm);
+
+    jTrailRef.current = pushToTrail(jTrailRef.current, { x: lm[20].x, y: lm[20].y });
+    zTrailRef.current = pushToTrail(zTrailRef.current, { x: lm[8].x, y: lm[8].y });
+
+    let sign = staticSign;
+    if (staticSign === "I" && detectJMotion(jTrailRef.current)) {
+      sign = "J";
+    } else if (!sign && detectZMotion(zTrailRef.current)) {
+      sign = "Z";
+    }
+
+    setDetectedSign(sign);
+
+    if (lockRef.current) return;
+
+    if (sign && sign === targetSign) {
+      // ✅ TAMA
+      lockRef.current = true;
+      wrongCountRef.current = 0;
+      emptyCountRef.current = 0;
+      onSignCompleted(sign);
+      setFeedback("correct");
+
+      const doneAfter = [...completed, sign];
+      setTimeout(() => {
+        setFeedback(null);
+
+        // susunod na letrang hindi pa tapos
+        const idx     = SUPPORTED_SIGNS.indexOf(sign);
+        const ordered = [...SUPPORTED_SIGNS.slice(idx + 1), ...SUPPORTED_SIGNS.slice(0, idx + 1)];
+        const next    = ordered.find(s => !doneAfter.includes(s));
+
+        if (next) {
+          setTargetSign(next);
+        } else {
+          // tapos na ang lahat ng letra → tapos na ang activity
+          setPracticingId(null);
+          setLandmarks(null);
+          setDetectedSign(null);
+          setFinished(true);
+        }
+        lockRef.current = false;
+      }, 1500);
+    } else if (sign) {
+      // ❌ ibang sign ang hawak
+      emptyCountRef.current = 0;
+      wrongCountRef.current += 1;
+      if (wrongCountRef.current >= 10) setFeedback("wrong");
+    } else {
+      // walang nakilalang sign
+      emptyCountRef.current += 1;
+      if (emptyCountRef.current >= 15) {
+        wrongCountRef.current = 0;
+        setFeedback(null);
+      }
+    }
+  };
+
+  // A–Z letters sa loob ng Alphabet card
+  const letterPicker = (mod) =>
+    mod.title !== "Alphabet" ? null : (
+      <div style={{ margin:"4px 0 10px", paddingTop:10, borderTop:`1px solid ${T.border}` }}>
+        <h4 style={{ margin:"0 0 8px", fontSize:11, fontWeight:700, color:T.text, textTransform:"uppercase", letterSpacing:"0.05em" }}>
+          
+        </h4>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+          {SUPPORTED_SIGNS.map(sign => {
+            const isTarget = practicing && sign === targetSign;
+            const isDone   = completed.includes(sign);
+            return (
+              <button
+                key={sign}
+                disabled={!practicing}
+                onClick={() => { setTargetSign(sign); resetFeedback(); }}
+                style={{
+                  width:36, padding:"6px 0", borderRadius:8, fontSize:13, fontWeight:700,
+                  cursor: practicing ? "pointer" : "default",
+                  border:`1.5px solid ${isTarget ? T.amber600 : isDone ? T.success : T.border}`,
+                  background: isTarget ? T.amber100 : isDone ? "#d1fae5" : "transparent",
+                  color: isTarget ? T.amber700 : isDone ? "#065f46" : T.textMuted,
+                  fontFamily:"inherit",
+                }}
+              >{sign}</button>
+            );
+          })}
+        </div>
+      </div>
+    );
+
+  const feedbackStyle = {
+    correct: { bg:"rgba(16,185,129,0.20)", border:"#10b981", color:"#6ee7b7", text:"✅ That's Correct, Next!" },
+    wrong:   { bg:"rgba(239,68,68,0.20)",  border:"#ef4444", color:"#fca5a5", text:"❌ That's Wrong, Try Again" },
+  }[feedback] || { bg:"rgba(255,255,255,0.06)", border:"transparent", color:"#e8c88a", text:`Show the sign for "${targetSign}"` };
+
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
       <Banner eyebrow="FSL Curriculum" title="My Modules" sub={`${modules.length} modules across ${LEVELS.length} levels · ${totalProgress}% overall`} />
+
+      {/* level summary cards */}
       <div style={{ display:"grid", gridTemplateColumns:`repeat(${LEVELS.length}, 1fr)`, gap:12 }}>
         {LEVELS.map(lvl => {
           const mods       = modules.filter(m => m.level === lvl);
@@ -530,6 +765,7 @@ function PageModules({ totalProgress }) {
           const done       = mods.filter(m => m.status === "complete").length;
           const active     = mods.filter(m => m.status === "active").length;
           const isSelected = activeLevel === lvl;
+          const levelPct   = Math.round(mods.reduce((a, m) => a + m.progress, 0) / mods.length);
           return (
             <div key={lvl} onClick={() => setActiveLevel(isSelected ? "all" : lvl)} style={{
               background: T.surface, borderRadius: T.radius,
@@ -541,143 +777,285 @@ function PageModules({ totalProgress }) {
             }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                 <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:4, background:lm.pillBg, color:lm.pillColor }}>{lvl}</span>
-                <span style={{ fontSize:12, fontWeight:700, color:lm.accent }}>0%</span>
+                <span style={{ fontSize:12, fontWeight:700, color:lm.accent }}>{levelPct}%</span>
               </div>
               <p style={{ margin:"0 0 2px", fontSize:13, fontWeight:700, color:T.text }}>{lm.label}</p>
               <p style={{ margin:"0 0 8px", fontSize:11, color:T.textMuted }}>{done}/{mods.length} complete · {active} active</p>
-              <Bar pct={0} accent={lm.accent} />
+              <Bar pct={levelPct} accent={lm.accent} />
             </div>
           );
         })}
       </div>
-      <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
-        {LEVELS.filter(lvl => activeLevel === "all" || activeLevel === lvl).map(lvl => {
-          const mods = modules.filter(m => m.level === lvl);
-          if (!mods.length) return null;
-          return (
-            <div key={lvl} style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:T.radiusLg, padding:"16px 18px", boxShadow:T.shadow }}>
-              <LevelSection level={lvl} mods={mods} collapsible />
-            </div>
-          );
-        })}
+
+      {/* modules (kaliwa) + camera (kanan) */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, alignItems:"start" }}>
+        <div style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:T.radiusLg, padding:"16px 18px", boxShadow:T.shadow, display:"flex", flexDirection:"column", gap:20 }}>
+          {LEVELS.filter(lvl => activeLevel === "all" || activeLevel === lvl).map(lvl => {
+            const mods = modules.filter(m => m.level === lvl);
+            if (!mods.length) return null;
+            return (
+              <LevelSection
+                key={lvl}
+                level={lvl}
+                mods={mods}
+                collapsible
+                columns={1}
+                renderExtra={letterPicker}
+                onContinue={handleContinue}
+                practicingId={practicingId}
+                allowEnd={false}
+              />
+            );
+          })}
+        </div>
+
+        <div style={{ background:"#1c1409", borderRadius:T.radiusLg, padding:16, boxShadow:T.shadowMd, display:"flex", flexDirection:"column", gap:12, minHeight:280 }}>
+          {practicing ? (
+            <>
+              <CameraView onResults={handleResults} />
+
+              <div style={{
+                textAlign:"center", padding:"10px 14px", borderRadius:10,
+                fontSize:15, fontWeight:700,
+                background: feedbackStyle.bg,
+                border:`1.5px solid ${feedbackStyle.border}`,
+                color: feedbackStyle.color,
+                transition:"all 0.2s ease",
+              }}>
+                {feedbackStyle.text}
+              </div>
+
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                <span style={{ fontSize:11, color:"#e8c88a" }}>
+                  {landmarks ? `✋ Hand detected — ${landmarks.length} landmarks tracked` : "Waiting for hand…"}
+                </span>
+                <div style={{
+                  display:"flex", alignItems:"center", gap:10,
+                  padding:"6px 12px", borderRadius:8,
+                  background: feedback === "correct" ? "rgba(16,185,129,0.18)" : "rgba(255,255,255,0.06)",
+                  transition:"background 0.2s",
+                }}>
+                  <span style={{ fontSize:11, color:"#e8c88a" }}>Target: <strong>{targetSign}</strong></span>
+                  <span style={{ fontSize:11, color:"#e8c88a" }}>Detected: <strong>{detectedSign || "—"}</strong></span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {finished && (
+                <div style={{
+                  textAlign:"center", padding:"10px 14px", borderRadius:10, fontSize:15, fontWeight:700,
+                  background:"rgba(16,185,129,0.20)", border:"1.5px solid #10b981", color:"#6ee7b7",
+                }}>
+                  🎉 Activity complete! You finished all the signs.
+                </div>
+              )}
+              <CameraPreview />
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
 /* ─────────────────────────────────────────────
-   PAGE: PRACTICE SESSION
+   PAGE: PRACTICE SESSION  (with End Practice)
 ───────────────────────────────────────────── */
-function PagePractice() {
+function PagePractice({ modules, completed = [], onSignCompleted }) {
   const available = modules.filter(m => m.status !== "locked");
-  const [landmarks, setLandmarks]     = useState(null);
+
+  const [practicingId, setPracticingId] = useState(null);
+  const [landmarks, setLandmarks]       = useState(null);
   const [detectedSign, setDetectedSign] = useState(null);
-  const [targetSign, setTargetSign]   = useState(SUPPORTED_SIGNS[0]);
-  const [justCorrect, setJustCorrect] = useState(false);
-  const lockRef = useRef(false);
+  const [targetSign, setTargetSign]     = useState(SUPPORTED_SIGNS[0]);
+  const [feedback, setFeedback]         = useState(null);   // null | "correct" | "wrong"
+  const lockRef       = useRef(false);
+  const wrongCountRef = useRef(0);
+  const emptyCountRef = useRef(0);
+  const jTrailRef     = useRef([]);
+  const zTrailRef     = useRef([]);
 
-  // Runs on every frame CameraView tracks a hand. Feeds the 21 landmarks
-  // into handLogic.js's detectCurrentSign() and compares against the
-  // sign the learner is currently practicing.
-   const jTrailRef = useRef([]);
-const zTrailRef = useRef([]);
+  const practicing = practicingId !== null;
 
-const handleResults = (lm) => {
-  setLandmarks(lm);
-  const staticSign = detectCurrentSign(lm);
+  const resetFeedback = () => {
+    setFeedback(null);
+    wrongCountRef.current = 0;
+    emptyCountRef.current = 0;
+  };
 
-  // track pinky tip (for J) and index tip (for Z) over recent frames
-  jTrailRef.current = pushToTrail(jTrailRef.current, { x: lm[20].x, y: lm[20].y });
-  zTrailRef.current = pushToTrail(zTrailRef.current, { x: lm[8].x, y: lm[8].y });
-
-  let sign = staticSign;
-  if (staticSign === "I" && detectJMotion(jTrailRef.current)) {
-    sign = "J";
-  } else if (!sign && detectZMotion(zTrailRef.current)) {
-    sign = "Z";
-  }
-
-  setDetectedSign(sign);
-
-  if (sign && sign === targetSign && !lockRef.current) {
-    lockRef.current = true;
-    setJustCorrect(true);
-    setTimeout(() => {
-      setJustCorrect(false);
-      setTargetSign(prev => {
-        const idx = SUPPORTED_SIGNS.indexOf(prev);
-        return SUPPORTED_SIGNS[(idx + 1) % SUPPORTED_SIGNS.length];
-      });
+  // Continue / End Practice button
+  const handleContinue = (mod) => {
+    if (practicingId === mod.id) {
+      setPracticingId(null);
+      setLandmarks(null);
+      setDetectedSign(null);
+      resetFeedback();
       lockRef.current = false;
-    }, 1200);
-  }
-};
+    } else {
+      setTargetSign(SUPPORTED_SIGNS[0]);
+      setDetectedSign(null);
+      resetFeedback();
+      setPracticingId(mod.id);
+    }
+  };
+
+  // Tumatakbo sa bawat frame na may nakitang kamay
+  const handleResults = (lm) => {
+    setLandmarks(lm);
+    const staticSign = detectCurrentSign(lm);
+
+    jTrailRef.current = pushToTrail(jTrailRef.current, { x: lm[20].x, y: lm[20].y });
+    zTrailRef.current = pushToTrail(zTrailRef.current, { x: lm[8].x, y: lm[8].y });
+
+    let sign = staticSign;
+    if (staticSign === "I" && detectJMotion(jTrailRef.current)) {
+      sign = "J";
+    } else if (!sign && detectZMotion(zTrailRef.current)) {
+      sign = "Z";
+    }
+
+    setDetectedSign(sign);
+
+    if (lockRef.current) return;
+
+    if (sign && sign === targetSign) {
+      // ✅ TAMA
+      lockRef.current = true;
+      wrongCountRef.current = 0;
+      emptyCountRef.current = 0;
+      onSignCompleted(sign);
+      setFeedback("correct");
+      setTimeout(() => {
+        setFeedback(null);
+        setTargetSign(prev => {
+          const idx = SUPPORTED_SIGNS.indexOf(prev);
+          return SUPPORTED_SIGNS[(idx + 1) % SUPPORTED_SIGNS.length];
+        });
+        lockRef.current = false;
+      }, 1500);
+    } else if (sign) {
+      // ❌ ibang sign ang hawak
+      emptyCountRef.current = 0;
+      wrongCountRef.current += 1;
+      if (wrongCountRef.current >= 10) setFeedback("wrong");
+    } else {
+      // walang nakilalang sign
+      emptyCountRef.current += 1;
+      if (emptyCountRef.current >= 15) {
+        wrongCountRef.current = 0;
+        setFeedback(null);
+      }
+    }
+  };
+
+  // A–Z letters sa loob ng Alphabet card
+  const letterPicker = (mod) =>
+    mod.title !== "Alphabet" ? null : (
+      <div style={{ margin:"4px 0 10px", paddingTop:10, borderTop:`1px solid ${T.border}` }}>
+        <h4 style={{ margin:"0 0 8px", fontSize:11, fontWeight:700, color:T.text, textTransform:"uppercase", letterSpacing:"0.05em" }}>
+          Practice Sign
+        </h4>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+          {SUPPORTED_SIGNS.map(sign => {
+            const isTarget = practicing && sign === targetSign;
+            const isDone   = completed.includes(sign);
+            return (
+              <button
+                key={sign}
+                disabled={!practicing}
+                onClick={() => { setTargetSign(sign); resetFeedback(); }}
+                style={{
+                  width:36, padding:"6px 0", borderRadius:8, fontSize:13, fontWeight:700,
+                  cursor: practicing ? "pointer" : "default",
+                  border:`1.5px solid ${isTarget ? T.amber600 : isDone ? T.success : T.border}`,
+                  background: isTarget ? T.amber100 : isDone ? "#d1fae5" : "transparent",
+                  color: isTarget ? T.amber700 : isDone ? "#065f46" : T.textMuted,
+                  fontFamily:"inherit",
+                }}
+              >{sign}</button>
+            );
+          })}
+        </div>
+      </div>
+    );
+
+  const feedbackStyle = {
+    correct: { bg:"rgba(16,185,129,0.20)", border:"#10b981", color:"#6ee7b7", text:"✅ That's Correct, Next!" },
+    wrong:   { bg:"rgba(239,68,68,0.20)",  border:"#ef4444", color:"#fca5a5", text:"❌ That's Wrong, Try Again" },
+  }[feedback] || { bg:"rgba(255,255,255,0.06)", border:"transparent", color:"#e8c88a", text:`Show the sign for "${targetSign}"` };
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-      <Banner title="Practice Session" sub="Choose a module and start signing" cta="▶ Start Now" />
+      <Banner title="Practice Session" sub="Choose a module and start signing" cta="" />
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
         <Card title="Available Modules" badge={available.length}>
           <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
             {LEVELS.map(lvl => {
               const mods = available.filter(m => m.level === lvl);
               if (!mods.length) return null;
-              return <LevelSection key={lvl} level={lvl} mods={mods} />;
+              return (
+                <LevelSection
+                  key={lvl}
+                  level={lvl}
+                  mods={mods}
+                  columns={1}
+                  renderExtra={letterPicker}
+                  onContinue={handleContinue}
+                  practicingId={practicingId}
+                />
+              );
             })}
             {available.length === 0 && (
               <p style={{ margin:0, fontSize:13, color:T.textMuted, textAlign:"center", padding:"20px 0" }}>No modules available yet.</p>
             )}
           </div>
-
-          <div style={{ marginTop:18, paddingTop:16, borderTop:`1px solid ${T.border}` }}>
-            <h3 style={{ margin:"0 0 10px", fontSize:12, fontWeight:700, color:T.text, textTransform:"uppercase", letterSpacing:"0.05em" }}>
-              Practice Sign
-            </h3>
-            <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-              {SUPPORTED_SIGNS.map(sign => (
-                <button
-                  key={sign}
-                  onClick={() => setTargetSign(sign)}
-                  style={{
-                    padding:"6px 12px", borderRadius:8, fontSize:13, fontWeight:700, cursor:"pointer",
-                    border: `1.5px solid ${sign === targetSign ? T.amber600 : T.border}`,
-                    background: sign === targetSign ? T.amber100 : "transparent",
-                    color: sign === targetSign ? T.amber700 : T.textMuted,
-                    fontFamily:"inherit",
-                  }}
-                >{sign}</button>
-              ))}
-            </div>
-          </div>
         </Card>
 
         <div style={{ background:"#1c1409", borderRadius:T.radiusLg, padding:16, boxShadow:T.shadowMd, display:"flex", flexDirection:"column", gap:12, minHeight:280 }}>
-          <CameraView onResults={handleResults} />
+          {practicing ? (
+            <>
+              <CameraView onResults={handleResults} />
 
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, flexWrap:"wrap" }}>
-            <span style={{ fontSize:11, color:"#e8c88a" }}>
-              {landmarks ? `✋ Hand detected — ${landmarks.length} landmarks tracked` : "Waiting for hand…"}
-            </span>
-            <div style={{
-              display:"flex", alignItems:"center", gap:10,
-              padding:"6px 12px", borderRadius:8,
-              background: justCorrect ? "rgba(16,185,129,0.18)" : "rgba(255,255,255,0.06)",
-              transition:"background 0.2s",
-            }}>
-              <span style={{ fontSize:11, color:"#e8c88a" }}>Target: <strong>{targetSign}</strong></span>
-              <span style={{ fontSize:11, color:"#e8c88a" }}>Detected: <strong>{detectedSign || "—"}</strong></span>
-              {justCorrect && <span style={{ fontSize:13 }}>✅</span>}
-            </div>
-          </div>
+              <div style={{
+                textAlign:"center", padding:"10px 14px", borderRadius:10,
+                fontSize:15, fontWeight:700,
+                background: feedbackStyle.bg,
+                border:`1.5px solid ${feedbackStyle.border}`,
+                color: feedbackStyle.color,
+                transition:"all 0.2s ease",
+              }}>
+                {feedbackStyle.text}
+              </div>
+
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                <span style={{ fontSize:11, color:"#e8c88a" }}>
+                  {landmarks ? `✋ Hand detected — ${landmarks.length} landmarks tracked` : "Waiting for hand…"}
+                </span>
+                <div style={{
+                  display:"flex", alignItems:"center", gap:10,
+                  padding:"6px 12px", borderRadius:8,
+                  background: feedback === "correct" ? "rgba(16,185,129,0.18)" : "rgba(255,255,255,0.06)",
+                  transition:"background 0.2s",
+                }}>
+                  <span style={{ fontSize:11, color:"#e8c88a" }}>Target: <strong>{targetSign}</strong></span>
+                  <span style={{ fontSize:11, color:"#e8c88a" }}>Detected: <strong>{detectedSign || "—"}</strong></span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <CameraPreview />
+          )}
         </div>
       </div>
     </div>
   );
 }
+
 /* ─────────────────────────────────────────────
    PAGE: PROGRESS REPORT
 ───────────────────────────────────────────── */
-function PageProgress({ totalProgress }) {
+function PageProgress({ totalProgress, modules }) {
   const totalDone = modules.reduce((a,m) => a + m.done, 0);
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
@@ -911,26 +1289,99 @@ export default function StudentDashboard() {
   const [activePage, setActivePage]   = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const [completed, setCompleted] = useState([]);
+  const storageKey = user ? `fsl-progress-${auth?.currentUser?.uid || user.id || user.email || "guest"}` : null;
+
+  // load saved progress
   useEffect(() => {
-    if (!user) { router.push('/'); return; }
-    if (user.role === 'faculty') { router.push('/dashboard/faculty'); return; }
-    if (user.role === 'admin')   { router.push('/dashboard/admin');   return; }
-  }, [user]);
+    if (!storageKey) return;
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) setCompleted(JSON.parse(saved));
+    } catch (e) {}
+  }, [storageKey]);
+
+  // called when a letter is signed correctly
+  const handleSignCompleted = (sign) => {
+  if (completed.includes(sign)) return;
+  const next = [...completed, sign];
+  setCompleted(next);
+  try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch (e) {}
+
+  const uid = auth?.currentUser?.uid;
+  if (uid) {
+    fetch("/api/progress", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uid, completed: next }),
+    }).catch(() => {});
+  }
+};
+
+  useEffect(() => {
+  const ping = () => {
+    const uid = auth?.currentUser?.uid;
+    if (!uid) return;
+    fetch("/api/progress", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uid }),
+    }).catch(() => {});
+  };
+  ping();
+  const t = setInterval(ping, 60000);
+  return () => clearInterval(t);
+}, [user]);
+
+useEffect(() => {
+  if (!storageKey) return;
+  let local = [];
+  try { local = JSON.parse(localStorage.getItem(storageKey) || "[]"); } catch (e) {}
+  const remote = Array.isArray(user?.completedSigns) ? user.completedSigns : [];
+  setCompleted([...new Set([...local, ...remote])]);
+}, [storageKey]);
 
   if (!user) return null;
 
-  const totalProgress = Math.round(modules.reduce((a,m) => a + m.progress, 0) / modules.length);
+  // ── resolve the user's real name (profile → Firebase → email prefix) ──
+  const fbUser = auth?.currentUser;
+
+const resolvedName =
+  user.name ||
+  user.fullName ||
+  user.full_name ||
+  user.displayName ||
+  fbUser?.displayName ||
+  "";
+
+const resolvedAvatar =
+  user.avatar ||
+  (resolvedName
+    ? resolvedName.split(/\s+/).filter(Boolean).map(n => n[0]).join("").toUpperCase().slice(0, 2)
+    : "?");
+
+const displayUser = { ...user, name: resolvedName, avatar: resolvedAvatar };
+
+  const liveModules = modules.map(m => {
+    if (m.title !== "Alphabet") return m;
+    const done = completed.filter(s => SUPPORTED_SIGNS.includes(s)).length;
+    const progress = Math.min(100, Math.round((done / m.total) * 100));
+    return { ...m, done, progress, status: progress === 100 ? "complete" : m.status };
+  });
+
+  const totalProgress = Math.round(liveModules.reduce((a, m) => a + m.progress, 0) / liveModules.length);
+
   const sidebarW = sidebarOpen ? SIDEBAR_EXPANDED : SIDEBAR_COLLAPSED;
 
   const renderPage = () => {
     switch (activePage) {
-      case "dashboard":    return <PageDashboard    user={user} totalProgress={totalProgress} setActivePage={setActivePage} />;
-      case "modules":      return <PageModules      totalProgress={totalProgress} />;
-      case "practice":     return <PagePractice />;
-      case "progress":     return <PageProgress     totalProgress={totalProgress} />;
+      case "dashboard":    return <PageDashboard    user={displayUser} modules={liveModules} totalProgress={totalProgress} setActivePage={setActivePage} />;
+      case "modules":      return <PageModules      modules={liveModules} totalProgress={totalProgress} completed={completed} onSignCompleted={handleSignCompleted} />;
+      case "practice":     return <PagePractice     modules={liveModules} completed={completed} onSignCompleted={handleSignCompleted} />;
+      case "progress":     return <PageProgress     modules={liveModules} totalProgress={totalProgress} />;
       case "achievements": return <PageAchievements />;
-      case "settings":     return <PageSettings     user={user} />;
-      default:             return <PageDashboard    user={user} totalProgress={totalProgress} setActivePage={setActivePage} />;
+      case "settings":     return <PageSettings     user={displayUser} />;
+      default:             return <PageDashboard    user={displayUser} modules={liveModules} totalProgress={totalProgress} setActivePage={setActivePage} />;
     }
   };
 
@@ -947,10 +1398,9 @@ export default function StudentDashboard() {
         onMouseEnter={() => setSidebarOpen(true)}
         onMouseLeave={() => setSidebarOpen(false)}
         style={{
-          width: sidebarW,
+          width: 120,
           minWidth: sidebarW,
           background: T.sidebarBg,
-          borderRight: `1px solid ${T.sidebarBorder}`,
           display:"flex",
           flexDirection:"column",
           padding:"0 0 17px",
@@ -965,7 +1415,6 @@ export default function StudentDashboard() {
         {/* brand */}
         <div style={{
           padding: sidebarOpen ? "18px 14px 14px" : "18px 0 14px",
-          borderBottom:`1px solid ${T.sidebarBorder}`,
           display:"flex", alignItems:"center",
           justifyContent: sidebarOpen ? "flex-start" : "center",
           gap: sidebarOpen ? 9 : 0,
@@ -973,10 +1422,10 @@ export default function StudentDashboard() {
           overflow:"hidden",
         }}>
           <img
-  src="/ubbg.png"
-  alt="UB Logo"
-  style={{ width:40, height:40  , borderRadius:9, objectFit:"cover", flexShrink:0 }}
-/>
+            src="/ubbg.png"
+            alt="UB Logo"
+            style={{ width:90, height:90, borderRadius:9, objectFit:"cover", flexShrink:0 }}
+          />
           <div style={{
             opacity: sidebarOpen ? 1 : 0,
             maxWidth: sidebarOpen ? 200 : 0,
@@ -992,7 +1441,7 @@ export default function StudentDashboard() {
         {/* nav */}
         <nav style={{
           flex:1,
-          padding: sidebarOpen ? "12px 8px" : "12px 6px",
+          padding: sidebarOpen ? "12px 14px" : "12px 6px",
           display:"flex", flexDirection:"column", gap:30,
           overflowY:"auto", overflowX:"hidden",
           transition:"padding 0.25s ease",
@@ -1008,10 +1457,9 @@ export default function StudentDashboard() {
           ))}
         </nav>
 
-        {/* ── CHANGE 4: user footer now shows avatar photo if available ── */}
+        {/* user footer: shows avatar photo if available, otherwise initials */}
         <div style={{
           margin: sidebarOpen ? "0 8px" : "0 6px",
-          borderTop:`1px solid ${T.sidebarBorder}`,
           paddingTop:12,
           display:"flex", alignItems:"center",
           justifyContent: sidebarOpen ? "flex-start" : "center",
@@ -1019,10 +1467,9 @@ export default function StudentDashboard() {
           overflow:"hidden",
           transition:"margin 0.25s ease, justify-content 0.25s ease",
         }}>
-          {/* avatar: show photo if saved, otherwise show initials */}
-          {user.avatarUrl
+          {displayUser.avatarUrl
             ? <img
-                src={user.avatarUrl}
+                src={displayUser.avatarUrl}
                 alt="avatar"
                 style={{ width:45, height:45, borderRadius:"50%", objectFit:"cover", flexShrink:0 }}
               />
@@ -1031,7 +1478,7 @@ export default function StudentDashboard() {
                 background: T.amber600,
                 display:"flex", alignItems:"center", justifyContent:"center",
                 color:"#fff", fontWeight:700, fontSize:13, flexShrink:0,
-              }}>{user.avatar}</div>
+              }}>{displayUser.avatar}</div>
           }
 
           <div style={{
@@ -1042,7 +1489,7 @@ export default function StudentDashboard() {
             flex:1, minWidth:0,
             whiteSpace:"nowrap",
           }}>
-            <p style={{ margin:0, fontSize:13, fontWeight:600, color:"#fff", overflow:"hidden", textOverflow:"ellipsis" }}>{user.name}</p>
+            <p style={{ margin:0, fontSize:13, fontWeight:600, color:"#fff", overflow:"hidden", textOverflow:"ellipsis" }}>{displayUser.name}</p>
             <p style={{ margin:0, fontSize:12, color:"rgba(255,255,255,0.35)" }}>FSL Student</p>
           </div>
 
