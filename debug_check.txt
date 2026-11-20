@@ -1,0 +1,40 @@
+﻿function PagePractice() {
+  const available = modules.filter(m => m.status !== "locked");
+  const [landmarks, setLandmarks]     = useState(null);
+  const [detectedSign, setDetectedSign] = useState(null);
+  const [targetSign, setTargetSign]   = useState(SUPPORTED_SIGNS[0]);
+  const [justCorrect, setJustCorrect] = useState(false);
+  const lockRef = useRef(false);
+  
+  // Runs on every frame CameraView tracks a hand. Feeds the 21 landmarks
+  // into handLogic.js's detectCurrentSign() and compares against the
+  // sign the learner is currently practicing.
+  const handleResults = (lm) => {
+    setLandmarks(lm);
+    const sign = detectCurrentSign(lm);
+    setDetectedSign(sign);
+    if (sign && sign === targetSign) {
+      setJustCorrect(true);
+      setTimeout(() => setJustCorrect(false), 1200);
+    }
+  };
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+      <Banner title="Practice Session" sub="Choose a module and start signing" cta="â–¶ Start Now" />
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+        <Card title="Available Modules" badge={available.length}>
+          <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+            {LEVELS.map(lvl => {
+              const mods = available.filter(m => m.level === lvl);
+              if (!mods.length) return null;
+              return <LevelSection key={lvl} level={lvl} mods={mods} />;
+            })}
+            {available.length === 0 && (
+              <p style={{ margin:0, fontSize:13, color:T.textMuted, textAlign:"center", padding:"20px 0" }}>No modules available yet.</p>
+            )}
+          </div>
+
+          <div style={{ marginTop:18, paddingTop:16, borderTop:`1px solid ${T.border}` }}>
+            <h3 style={{ margin:"0 0 10px", fontSize:12, fontWeight:700, color:T.text, textTransform:"uppercase", letterSpacing:"0.05em" }}>
+              Practice Sign

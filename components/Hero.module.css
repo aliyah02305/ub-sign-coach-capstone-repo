@@ -1,0 +1,198 @@
+.hero {
+  background: url('/bg-2.png') center/cover no-repeat;
+  min-height: 600px;
+  display: flex;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  padding: 5rem 4rem;
+}
+
+.heroBgGrid {
+  display: none;
+}
+
+.heroGlow {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(249, 198, 47, 0.2) 0%, transparent 70%);
+  top: -100px;
+  right: -100px;
+  pointer-events: none;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 1;
+  max-width: 600px;
+}
+
+.heroBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(249, 198, 47, 0.2);
+  border: 1px solid rgba(249, 198, 47, 0.2);
+  color: var(--gold-light);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 5px 13px;
+  border-radius: 2px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 1.75rem;
+}
+
+.heroBadgeDot {
+  width: 5px;
+  height: 5px;
+  background: var(--gold);
+  border-radius: 50%;
+}
+
+.heroContent h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 3.2rem;
+  font-weight: 700;
+  color: var(--white);
+  line-height: 1.12;
+  margin-bottom: 1.4rem;
+}
+
+.heroContent h1 em {
+  color: var(--gold);
+  font-style: normal;
+}
+
+.heroSub {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.58);
+  line-height: 1.8;
+  margin-bottom: 2.75rem;
+  max-width: 500px;
+}
+
+.heroActions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.heroVisual {
+  position: absolute;
+  right: 4rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+.heroCard {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(249, 198, 47, 0.2);
+  border-radius: 10px;
+  padding: 1.75rem;
+  width: 270px;
+  backdrop-filter: blur(6px);
+}
+
+.hcLabel {
+  font-size: 10px;
+  color: var(--gold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 1.1rem;
+}
+
+.hcGesture {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 1.1rem;
+}
+
+.hcRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hcDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.hcDot.green {
+  background: var(--green);
+}
+
+.hcDot.gold {
+  background: var(--gold);
+}
+
+.hcDot.gray {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.hcBarWrap {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.hcBar {
+  height: 100%;
+  border-radius: 2px;
+}
+
+.hcVal {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  min-width: 34px;
+  text-align: right;
+}
+
+.hcScore {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 1rem;
+}
+
+.hcScoreLabel {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.hcScoreVal {
+  font-family: 'Playfair Display', serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+@media (max-width: 900px) {
+  .hero {
+    padding: 4rem 2rem;
+  }
+
+  .heroVisual {
+    display: none;
+  }
+
+  .heroContent h1 {
+    font-size: 2.4rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .heroContent h1 {
+    font-size: 2rem;
+  }
+}

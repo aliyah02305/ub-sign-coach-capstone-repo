@@ -1,0 +1,75 @@
+.aboutGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4.5rem;
+  align-items: start;
+}
+
+.aboutText p {
+  font-size: 14px;
+  color: #3a4a60;
+  line-height: 1.85;
+  margin-bottom: 1rem;
+}
+
+.aboutHighlights {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.highlightItem {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gold);
+  border-radius: 6px;
+  padding: 1.2rem 1.4rem;
+  transition: box-shadow 0.2s;
+}
+
+.highlightItem:hover {
+  box-shadow: 0 4px 20px rgba(249, 198, 47, 0.2);
+}
+
+.hiIcon {
+  width: 38px;
+  height: 38px;
+  background: #faf6ec;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--gold);
+}
+
+.hiIcon svg {
+  width: 17px;
+  height: 17px;
+  stroke: var(--gold);
+  fill: none;
+  stroke-width: 1.5;
+}
+
+.hiTitle {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--navy);
+  margin-bottom: 3px;
+}
+
+.hiText {
+  font-size: 12px;
+  color: var(--mid);
+  line-height: 1.65;
+}
+
+@media (max-width: 860px) {
+  .aboutGrid {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+}

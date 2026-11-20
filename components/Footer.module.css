@@ -1,0 +1,110 @@
+.footer {
+  background: var(--navy3);
+  padding: 3rem 4rem 2rem;
+}
+
+.footerTop {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1fr;
+  gap: 3rem;
+  padding-bottom: 2.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  margin-bottom: 1.75rem;
+}
+
+.footerBrandName {
+  font-family: 'Playfair Display', serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 0.75rem;
+}
+
+.footerBrandName span {
+  color: var(--gold);
+}
+
+.footerDesc {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.35);
+  line-height: 1.75;
+  margin-bottom: 1.25rem;
+}
+
+.footerSdgs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.footerSdgBadge {
+  font-size: 10px;
+  background: rgba(249, 198, 47, 0.2);
+  color: var(--gold-light);
+  border: 1px solid rgba(249, 198, 47, 0.2);
+  padding: 3px 9px;
+  border-radius: 2px;
+  letter-spacing: 0.06em;
+}
+
+.footerColTitle {
+  font-size: 11px;
+  color: var(--gold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+.footerColLinks {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.footerColLinks a {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.38);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.footerColLinks a:hover {
+  color: var(--gold-light);
+}
+
+.footerBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.footerCopy {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.22);
+}
+
+.footerInstitution {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.22);
+}
+
+@media (max-width: 860px) {
+  .footerTop {
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+  }
+
+  .footer {
+    padding: 2.5rem 1.75rem 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .footerTop {
+    grid-template-columns: 1fr;
+  }
+}

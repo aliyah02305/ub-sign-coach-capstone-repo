@@ -1,0 +1,134 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  uid       String   @unique
+  name      String
+  email     String   @unique
+  role      String
+  level     String?
+  avatar    String?
+  createdAt DateTime @default(now())
+
+  completedSigns Json?
+  lastSeen       DateTime?
+
+  notifications       Notification[]
+  curricula           CurriculumSyllabus[]
+  performanceProgress PerformanceProgress[]
+  practiceSessions    PracticeSession[]
+  badges              UserBadge[]
+}
+
+model Report {
+  id        Int      @id @default(autoincrement())
+  uid       String
+  name      String?
+  email     String?
+  role      String   @default("student")
+  category  String
+  message   String   @db.Text
+  status    String   @default("open")
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  notificationId Int      @id @default(autoincrement()) @map("notification_id")
+  recipient      Int
+  notifType      String   @map("notif_type") @db.VarChar(50)
+  message        String   @db.Text
+  isRead         Boolean  @default(false) @map("is_read")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [recipient], references: [id], onDelete: Cascade)
+
+  @@index([recipient])
+  @@map("notification")
+}
+
+model CurriculumSyllabus {
+  curriculumId Int      @id @default(autoincrement()) @map("curriculum_id")
+  facultyId    Int      @map("faculty_id")
+  title        String   @db.VarChar(150)
+  description  String?  @db.Text
+  level        String   @db.VarChar(50)
+  status       String   @default("active") @db.VarChar(30)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  faculty             User                  @relation(fields: [facultyId], references: [id])
+  moduleActivities    ModuleActivity[]
+  performanceProgress PerformanceProgress[]
+
+  @@index([facultyId])
+  @@map("curriculum_syllabus")
+}
+
+model ModuleActivity {
+  activityId      Int      @id @default(autoincrement()) @map("activity_id")
+  curriculumId    Int      @map("curriculum_id")
+  title           String   @db.VarChar(150)
+  activityType    String   @map("activity_type") @db.VarChar(50)
+  expectedGesture String   @map("expected_gesture") @db.VarChar(20)
+  sequenceNo      Int      @map("sequence_no")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  curriculum       CurriculumSyllabus @relation(fields: [curriculumId], references: [curriculumId], onDelete: Cascade)
+  practiceSessions PracticeSession[]
+
+  @@index([curriculumId])
+  @@map("module_activities")
+}
+
+model PerformanceProgress {
+  progressId       Int      @id @default(autoincrement()) @map("progress_id")
+  learnerId        Int      @map("learner_id")
+  curriculumId     Int      @map("curriculum_id")
+  gestureAccuracy  Float    @default(0) @map("gesture_accuracy")
+  proficiencyLevel String   @map("proficiency_level") @db.VarChar(50)
+  completionRate   Float    @default(0) @map("completion_rate")
+  dateRecorded     DateTime @default(now()) @map("date_recorded")
+
+  learner    User               @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  curriculum CurriculumSyllabus @relation(fields: [curriculumId], references: [curriculumId], onDelete: Cascade)
+
+  @@index([learnerId])
+  @@index([curriculumId])
+  @@map("performance_progress")
+}
+
+model PracticeSession {
+  sessionId       Int      @id @default(autoincrement()) @map("session_id")
+  learnerId       Int      @map("learner_id")
+  activityId      Int      @map("activity_id")
+  gestureAccuracy Float    @default(0) @map("gesture_accuracy")
+  feedback        String?  @db.Text
+  status          String   @db.VarChar(30)
+  sessionDate     DateTime @default(now()) @map("session_date")
+
+  learner  User           @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  activity ModuleActivity @relation(fields: [activityId], references: [activityId], onDelete: Cascade)
+
+  @@index([learnerId])
+  @@index([activityId])
+  @@map("practice_sessions")
+}
+
+model UserBadge {
+  id        Int      @id @default(autoincrement())
+  learnerId Int      @map("learner_id")
+  badgeId   Int      @map("badge_id")
+  earnedAt  DateTime @default(now()) @map("earned_at")
+
+  learner User @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+
+  @@index([learnerId])
+  @@map("user_badges")
+}

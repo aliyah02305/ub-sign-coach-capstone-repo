@@ -1,0 +1,78 @@
+.audienceGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.audienceCard {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 2rem;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s;
+}
+
+.audienceCard:hover {
+  transform: translateY(-3px);
+}
+
+.audienceCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+
+.primary::before {
+  background: var(--gold);
+}
+
+.secondary::before {
+  background: var(--accent);
+}
+
+.future::before {
+  background: var(--mid);
+}
+
+.acType {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 500;
+  margin-bottom: 0.65rem;
+}
+
+.primary .acType {
+  color: var(--gold);
+}
+
+.secondary .acType {
+  color: var(--accent);
+}
+
+.future .acType {
+  color: var(--mid);
+}
+
+.acTitle {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--navy);
+  margin-bottom: 0.55rem;
+}
+
+.acText {
+  font-size: 12px;
+  color: var(--mid);
+  line-height: 1.75;
+}
+
+@media (max-width: 860px) {
+  .audienceGrid {
+    grid-template-columns: 1fr;
+  }
+}
